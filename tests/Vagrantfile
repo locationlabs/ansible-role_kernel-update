@@ -1,0 +1,71 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+nodes = [
+  {
+    :hostname => 'vagrant-docker-test',
+    :domain => '.wavemarket.com',
+    :ip => '172.19.56.22',
+    :box => 'bento/ubuntu-14.04',
+    :ram => '2048',
+    :cpus => 2,
+    :autostart => true
+  },
+]
+
+VAGRANTFILE_API_VERSION = "2"
+VM_DEFAULT_RAM = 512
+VM_DEFAULT_CPUS = 1
+LOCAL_BUILD_DIR="/var/tmp/#{ENV['USER']}/build/"
+
+Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
+
+  config.ssh.insert_key = false
+
+  if Vagrant.has_plugin?('vagrant-cachier')
+    config.cache.enable :apt
+  else
+    printf("** Install vagrant-cachier plugin to speedup deploy: `vagrant plugin install vagrant-cachier`.**\n")
+  end
+
+  if Vagrant.has_plugin?('vagrant-hostmanager')
+    config.hostmanager.enabled = true
+    config.hostmanager.manage_host = true
+  else
+    raise "** Install vagrant-hostmanager plugin: `vagrant plugin install vagrant-hostmanager`.**\n"
+  end
+
+  nodes.each do |node|
+    config.vm.define node[:hostname], autostart: node[:autostart] do |node_config|
+      node_config.vm.box = node[:box]
+      node_config.vm.hostname = node[:hostname] + node[:domain]
+      node_config.vm.network :private_network, ip: node[:ip]
+
+      # setup a shared folder with the host's build folder
+      # to simplify installing local builds
+      if File.directory?(LOCAL_BUILD_DIR)
+        node_config.vm.synced_folder LOCAL_BUILD_DIR, LOCAL_BUILD_DIR
+      end
+
+      node_config.vm.provider :virtualbox do |vb|
+        vb.memory = node[:ram] || VM_DEFAULT_RAM
+        vb.cpus = node[:cpus] || VM_DEFAULT_CPUS
+        vb.customize ["modifyvm", :id, "--natdnshostresolver1", "on"]
+      end
+
+      node_config.vm.provision "shell", inline: $provision_shell_script
+    end
+  end
+
+end
+
+$provision_shell_script = <<SCRIPT
+apt-get -qy update
+echo "Setting timezone..."
+echo "America/Los_Angeles" | sudo tee /etc/timezone
+sudo dpkg-reconfigure --frontend noninteractive tzdata
+echo "Copying vagrant private key to root user..."
+mkdir -p /root/.ssh
+cat /home/vagrant/.ssh/authorized_keys >> /root/.ssh/authorized_keys
+SCRIPT
+

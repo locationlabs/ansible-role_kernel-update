@@ -1,0 +1,77 @@
+---
+
+# noop to detect check mode for older versions of ansible.
+# http://docs.ansible.com/ansible/playbooks_checkmode.html#information-about-check-mode-in-variables
+- command: /bin/true
+  register: noop_result
+
+- set_fact: check_mode={{ noop_result|skipped }}
+
+# These are the version of Ubuntu for which this role has been tested.
+- name: Fail if not a new release of Ubuntu
+  fail: msg="{{ ansible_distribution_version }} is not an acceptable version of Ubuntu for this role"
+  when: "ansible_distribution_version not in ['12.04', '13.04', '13.10', '14.04', '16.04']"
+
+# https://docs.docker.com/engine/installation/linux/ubuntulinux/#/prerequisites-by-ubuntu-version
+# https://wiki.ubuntu.com/Kernel/LTSEnablementStack
+# - 12.04: Docker requires the 3.13 kernel version.
+#          Ensure the trusty kernel is installed.
+# - 14.04: Support aufs via the linux-image-extra-* kernel package.
+#          Achieve this with the xenial kernel, which depends on the
+#          corresponding extra package, to address issues with kernels
+#          before 3.19 at the same time.
+#          https://github.com/docker/docker/issues/21704#issuecomment-235365424
+- name: Install HWE kernel on pre-16.04 LTS
+  apt:
+    pkg: "{{ item.name }}"
+    state: "{{ kernel_pkg_state }}"
+    update_cache: yes
+    install_recommends: "{{ item.install_recommends|default('no') }}"
+    cache_valid_time: "{{ apt_cache_valid_time }}"
+  with_items:
+    - name: linux-generic-lts-trusty
+      version: "12.04"
+      install_recommends: yes
+    - name: linux-image-generic-lts-trusty
+      version: "12.04"
+    - name: linux-headers-generic-lts-trusty
+      version: "12.04"
+    - name: linux-image-generic-lts-xenial
+      version: "14.04"
+      install_recommends: yes
+  register: kernel_result
+  when: ansible_distribution_version == item.version
+
+# - 14.04: docker documentation suggests also installing
+#          linux-image-extra-virtual package
+- name: Install latest kernel extras if needed
+  apt:
+    pkg: "{{ item.name }}"
+    state: "{{ kernel_pkg_state }}"
+    update_cache: yes
+    cache_valid_time: "{{ apt_cache_valid_time }}"
+  with_items:
+    - name: "linux-image-extra-{{ ansible_kernel }}"
+      versions: ['13.04', '13.10']
+    - name: linux-image-extra-virtual
+      versions: ['16.04', '14.04']
+  register: linux_image_extra_result
+  when: ansible_distribution_version in item.versions
+
+# Fix for https://github.com/dotcloud/docker/issues/4568
+- name: Install cgroup-lite for Ubuntu 13.10
+  apt:
+    pkg: cgroup-lite
+    state: "{{ cgroup_lite_pkg_state }}"
+    update_cache: yes
+    cache_valid_time: "{{ apt_cache_valid_time }}"
+  register: cgroup_lite_result
+  when: ansible_distribution_version == '13.10'
+
+- include: reboot-and-wait.yml
+  when: kernel_result|changed or linux_image_extra_result|changed or cgroup_lite_result|changed
+
+# this role modifies the host in ways which might have been cached
+# lets update all facts here to be sure we have ansible up to date.
+- name: update facts about host
+  setup:

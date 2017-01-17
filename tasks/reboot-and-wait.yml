@@ -1,0 +1,28 @@
+---
+# reboot an Ubuntu machine if needed and wait for it to come back
+- name: Detect vagrant instance
+  set_fact:
+    is_vagrant: "{{is_vagrant | default(ansible_ssh_user == 'vagrant')}}"
+
+- name: Reboot instance
+  command: /sbin/shutdown -r now
+  args:
+    removes: /var/run/reboot-required
+  register: reboot_result
+  when: not is_vagrant
+
+# this is required in a vagrant environment due to apt caching issues after a kernel update
+- name: Reload vagrant instance
+  local_action: command vagrant reload "{{inventory_hostname}}"
+  when: is_vagrant
+  become: false
+
+- name: Wait for instance to come online
+  local_action:
+    module: wait_for
+    host: "{{ ansible_ssh_host|default(inventory_hostname) }}"
+    port: "{{ ansible_ssh_port|default(ssh_port) }}"
+    delay: 30
+    timeout: 600
+    state: started
+  become: false

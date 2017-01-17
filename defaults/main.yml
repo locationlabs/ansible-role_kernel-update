@@ -1,0 +1,7 @@
+---
+# defaults file for ansible-role_kernel-update
+
+kernel_pkg_state: latest
+cgroup_lite_pkg_state: latest
+ssh_port: 22
+apt_cache_valid_time: 86400

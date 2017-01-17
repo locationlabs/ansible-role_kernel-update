@@ -1,0 +1,11 @@
+---
+
+# most of the automated testing was done with 14.04 boxes
+kernel_version_to_distribution_versions:
+   '4.4': ['14.04', '16.04']
+   '3.13': ['12.04']
+   # not sure we've done much testing with 13.x
+   '3.11': ['13.10']
+   '3.8': ['13.04']
+
+
