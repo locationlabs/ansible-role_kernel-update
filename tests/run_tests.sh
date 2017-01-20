@@ -42,10 +42,30 @@ function after_test() {
    vagrant destroy -f
 }
 
-ALL_TESTS="upgrade"
+ALL_TESTS="upgrade rollback rollbackX2 upgrade_after_manual_grub_change rollback_after_manual_kernel_change"
 
 function run_upgrade_test() {
    run_ansible_playbook upgrade.yml
+}
+
+function run_rollback_test() {
+   run_ansible_playbook upgrade.yml && \
+      run_ansible_playbook rollback.yml
+}
+
+function run_rollbackX2_test() {
+   run_ansible_playbook upgrade.yml && \
+      run_ansible_playbook rollbackX2.yml
+}
+
+function run_upgrade_after_manual_grub_change_test() {
+   run_ansible_playbook manual_grub_change.yml && \
+      run_ansible_playbook upgrade.yml
+}
+
+function run_rollback_after_manual_kernel_change_test() {
+   run_ansible_playbook manual_kernel_change.yml && \
+      run_ansible_playbook rollback.yml
 }
 
 before_run

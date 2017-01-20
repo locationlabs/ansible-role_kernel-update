@@ -1,0 +1,41 @@
+---
+#### 12.04
+#### Tasks for geting the kernel_update_grub_default value we want to use when running on a 12.04 box
+
+# Assumptions:
+#   1. grub doesn't have the latest kernel stored under a submenu
+#   2. grub stores all but the newest kernel in a submenu called "Previous Linux versions"
+#   3. grub does not have a menuentry_id_option for any kernel (as is present and recommended in 14.04)
+#   4. generating the kernel_update_grub_default will require using the menuentry title(s) for the desired kernel
+#   5. Ubuntu 12.04 LTS (Precise Pangolin) boxes are running grub 1.99
+#   6. Details of how /boot/grub/grub.cfg are generated can be found in /etc/grub.d/10_linux
+
+# Most of these assumptions are confirmed by documentation:
+#   1. https://help.ubuntu.com/community/Grub2
+#   2. https://help.ubuntu.com/community/Grub2/Submenus#Submenu_Display
+#   3. https://www.gnu.org/software/grub/manual/html_node/Simple-configuration.html
+
+
+# the unescaped version:
+#   grep menuentry /boot/grub/grub.cfg | grep -o \'.*\' | grep -v recovery | sed s/\'//g | sort -V -r
+# **RUN EVEN IN CHECKMODE**
+- name: get non recovery grub menuentry titles in sorted order
+  shell: "grep menuentry /boot/grub/grub.cfg | grep -o \\'.*\\' | grep -v recovery | sed s/\\'//g | sort -V -r"
+  register: ku_menuentry_titles
+  always_run: yes
+
+# workaround to address issue with 'with_indexed_items expects a list' problem
+- set_fact:
+    ku_menuentry_titles_list: "{{ ku_menuentry_titles.stdout.splitlines()|default([]) }}"
+
+- name: Set the grub default without a sub menu if rolling back to the newest kernel version
+  set_fact:
+    kernel_update_grub_default: "{{ item.1 }}"
+  with_indexed_items: "{{ ku_menuentry_titles_list|default([]) }}"
+  when: kernel_update_grub_requested_kernel_version in item.1 and item.0 == 0
+
+- name: Set the grub default with a sub menu if rolling back to a "Previous Linux versions"
+  set_fact:
+    kernel_update_grub_default: "Previous Linux versions>{{ item.1 }}"
+  with_indexed_items: "{{ ku_menuentry_titles_list|default([]) }}"
+  when: kernel_update_grub_requested_kernel_version in item.1 and item.0 != 0

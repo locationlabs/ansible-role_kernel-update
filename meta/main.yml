@@ -1,0 +1,8 @@
+---
+galaxy_info:
+  author: Location Labs
+  description: Kernel Update for Ubuntu machines
+  company: Location Labs
+  license: Apache v2.0
+  min_ansible_version: 1.9.6
+dependencies: []

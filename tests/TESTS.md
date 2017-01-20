@@ -32,3 +32,12 @@ issue you could also check your vagrant plugins.
     vagrant-multiprovider-snap (0.0.14)
     vagrant-share (1.1.6, system)
     vagrant-vbguest (0.13.0)
+
+To prevent having to enter your password for hostmanager configure passwordless sudo:
+
+  * https://github.com/devopsgroup-io/vagrant-hostmanager#passwordless-sudo
+
+## Ubuntu versions
+
+If you have a particular version of Ubuntu you need to test with modify the Vagrantfile to
+load a box with the version you need to test before running the test script.

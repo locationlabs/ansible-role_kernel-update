@@ -1,20 +1,27 @@
 ---
 # reboot an Ubuntu machine if needed and wait for it to come back
+
+# if one of these is 'vagrant' we're probably deploying to a vagrant environment.
+# https://gist.github.com/yarloocll/48aa334095b31bad2d3aaadb541fbf23
 - name: Detect vagrant instance
   set_fact:
-    is_vagrant: "{{is_vagrant | default(ansible_ssh_user == 'vagrant')}}"
+    is_vagrant: "{{ is_vagrant | default(
+         (ansible_ssh_user is defined and ansible_ssh_user         == 'vagrant')
+      or (ansible_user_id  is defined and ansible_user_id          == 'vagrant')
+      or (ansible_env      is defined and ansible_env['SUDO_USER'] is defined
+                                      and ansible_env['SUDO_USER'] == 'vagrant') ) }}"
 
 - name: Reboot instance
   command: /sbin/shutdown -r now
   args:
     removes: /var/run/reboot-required
   register: reboot_result
-  when: not is_vagrant
+  when: not is_vagrant|bool
 
 # this is required in a vagrant environment due to apt caching issues after a kernel update
 - name: Reload vagrant instance
   local_action: command vagrant reload "{{inventory_hostname}}"
-  when: is_vagrant
+  when: is_vagrant|bool
   become: false
 
 - name: Wait for instance to come online

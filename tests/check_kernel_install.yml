@@ -8,3 +8,4 @@
   assert:
     that:
       - ansible_distribution_version in kernel_version_to_distribution_versions[kernel_version_short]
+      - ansible_kernel != old_ansible_kernel

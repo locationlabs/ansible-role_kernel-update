@@ -1,0 +1,35 @@
+---
+# Write the host machines current kernel version to a file on the host in case a rollback is required
+# This will always get done the first time the role is run on a host unless disabled by users of the role.
+#
+# In most cases users should probably have a separate playbook to remove this file that is run
+# on all machines that will need a new file generated (rather than override an existing file) since
+# partial completion of the plays could lead to lose of information needed to rollback a box back
+# to its original state.
+#
+# Example:
+#   a user might accidentaly run a command that affects multiple hosts that partially completes on the
+#   first run and then on the second run lose some potentially useful information because they enabled
+#   overriding the version file (which will only make sense on certain hosts after a partial run).
+#
+# Adding removal, a prompt or an age check of the file to this role could also work.
+#  http://docs.ansible.com/ansible/playbooks_prompts.html
+
+- name: stat the kernel_update_kernel_version_file
+  stat:
+    path: "{{ kernel_update_kernel_version_file }}"
+  register: ku_stat_kernel_version_file_result
+
+- set_fact:
+    kernel_update_store_kernel_version: "{{ kernel_update_store_kernel_version|default(not ku_stat_kernel_version_file_result.stat.exists) }}"
+
+# lets be extra cautious here and update the ansible_kernel fact first
+- name: update ansible_kernel fact
+  setup:
+    filter: ansible_kernel
+
+- name: write current kernel version to file
+  copy:
+    content: "{{ ansible_kernel }}"
+    dest: "{{ kernel_update_kernel_version_file }}"
+  when: kernel_update_store_kernel_version|bool

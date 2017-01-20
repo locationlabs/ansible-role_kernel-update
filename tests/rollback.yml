@@ -1,0 +1,22 @@
+---
+
+# rollback (read from kernel version file)
+
+- hosts: all
+  pre_tasks:
+    - set_fact:
+        kernel_update_rollback: True
+        old_ansible_kernel: "{{ ansible_kernel }}"
+
+  roles:
+    - role: kernel-update
+
+  post_tasks:
+    - set_fact:
+        kernel_version_to_distribution_versions: "{{ kernel_rollback_version_to_distribution_versions }}"
+
+    - include: check_kernel_install.yml
+
+    - assert:
+        that:
+          - ansible_kernel == kernel_update_rollback_kernel_version

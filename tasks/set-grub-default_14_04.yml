@@ -1,0 +1,53 @@
+---
+#### 14.04
+#### Tasks for geting the kernel_update_grub_default value we want to use when running on a 14.04 box
+
+# Assumptions:
+#   1. a) grub stores all bootable kernels in a submenu:
+#      title='Advanced options for Ubuntu' menuentry_id_option='gnulinux-advanced-{{some string}}'
+#      b) grub stores menuentries within the submenu for each bootable kernel:
+#      title='Ubuntu, with Linux {{some kernel version}}' menuentry_id_option='gnulinux-{{some kernel version}}-advanced-{{some string}}'
+#   2. grub stores the latest kernel in a top level menuentry (but we don't use that here):
+#      title='Ubuntu' menuentry_id_option='gnulinux-simple-{{some string}}'
+#   3. a) grub has a menuentry_id_option for each menuentry and submenu.
+#      b) grub generates a child menuentry that can generate its parent menuentry_id_option by removing the
+#      '{{some kernel version}}-' component of its own menuentry_id_option.
+#   4. generating the kernel_update_grub_default could get done using the menuentry title(s) for
+#      the desired kernel but it is recommended to use the menuentry_id_option:
+#          Using
+#          the id may be useful if you want to set a menu entry as the default
+#          even though there may be a variable number of entries before it.
+#           ...
+#          Previously it was documented the way to use entry title.  While
+#          this still works it's not recommended since titles often contain
+#          unstable device names and may be translated
+#   5. Ubuntu 14.04 LTS Ubuntu 14.04 (Trusty Tahr) boxes are running grub 2.02
+#   6. Details of how /boot/grub/grub.cfg are generated can be found in /etc/grub.d/10_linux
+
+# I haven't found documentation backing up the assumptions about menuentry_id_options just yet, but other
+# assumptions seem to be in line with existing documentation of grub:
+#   1. https://help.ubuntu.com/community/Grub2
+#   2. https://help.ubuntu.com/community/Grub2/Submenus#Submenu_Display
+#   3. (run on a 14.04 box): info -f grub -n 'Simple configuration'
+
+
+# the unescaped version:
+#   awk '/\$menuentry_id_option/ {print $(NF-1) }' /boot/grub/grub.cfg | sed s/\'//g | grep -v recovery | grep -F  {{ kernel_update_grub_requested_kernel_version }}
+# **RUN EVEN IN CHECKMODE**
+- name: get menuentry_id_option from /boot/grub/grub.cfg for {{ kernel_update_grub_requested_kernel_version }}
+  shell: "awk \'/\\$menuentry_id_option/ {print $(NF-1) }\' /boot/grub/grub.cfg | sed s/\\'//g | grep -v recovery | grep -F {{ kernel_update_grub_requested_kernel_version }}"
+  when: kernel_update_grub_requested_kernel_version is defined
+  register: ku_set_grub_vars_kernel_id
+  always_run: yes
+
+- name: escape the kernel_update_grub_requested_kernel_version to assist with generating parent id
+  set_fact:
+    kernel_update_grub_requested_kernel_version_escaped: "{{ kernel_update_grub_requested_kernel_version|regex_replace('\\.', '\\.') }}"
+
+- name: get the parent menu id for the kernel
+  set_fact:
+    ku_set_grub_vars_kernel_parent_id: "{{ ku_set_grub_vars_kernel_id.stdout|regex_replace(kernel_update_grub_requested_kernel_version_escaped+'-', '') }}"
+
+- name: set a value for kernel_update_grub_default
+  set_fact:
+   kernel_update_grub_default: "{{ ku_set_grub_vars_kernel_parent_id }}>{{ ku_set_grub_vars_kernel_id.stdout }}"

@@ -1,0 +1,18 @@
+---
+
+# rollback (to the currently installed kernel in order to achieve a grub config change)
+
+- hosts: all
+  pre_tasks:
+    - set_fact:
+        kernel_update_rollback: True
+        kernel_update_rollback_kernel_version: "{{ ansible_kernel }}"
+        old_ansible_kernel: "{{ ansible_kernel }}"
+
+  roles:
+    - role: kernel-update
+
+  post_tasks:
+    - assert:
+        that:
+          - ansible_kernel == kernel_update_rollback_kernel_version

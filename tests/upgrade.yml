@@ -1,7 +1,26 @@
 ---
 
+# upgrade to latest kernel
+
 - hosts: all
+  pre_tasks:
+    - set_fact:
+        old_ansible_kernel: "{{ ansible_kernel }}"
+
   roles:
     - role: kernel-update
-  tasks:
+
+  post_tasks:
+    - set_fact:
+        kernel_version_to_distribution_versions: "{{ kernel_upgrade_version_to_distribution_versions }}"
+
     - include: check_kernel_install.yml
+
+    - name: read kernel version from file
+      command: "cat {{ kernel_update_kernel_version_file }}"
+      register: ku_stored_kernel_version
+
+    - name: check kernel version writing results
+      assert:
+        that:
+          - old_ansible_kernel == ku_stored_kernel_version.stdout

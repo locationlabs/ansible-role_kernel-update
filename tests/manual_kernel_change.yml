@@ -1,0 +1,59 @@
+---
+# We are going to install a somewhat newish kernel package and rollback to it.
+
+# install an old kernel image
+
+- hosts: all
+  tasks:
+    - set_fact:
+        kernel_update_kernel_pkg_state: latest
+        apt_cache_valid_time: 86400
+        ubuntu_version_to_old_kernel_info:
+          '12.04':
+            kernel: '3.2.0-23-generic'
+            kernel_pkgs:
+              - name: 'linux-image-3.2.0-23-generic'
+            '3.2': ['12.04']
+          '14.04':
+            kernel: '4.2.0-42-generic'
+            kernel_pkgs:
+              - name: 'linux-image-4.2.0-42-generic'
+            '4.2': ['14.04']
+          # haven't really done testing here.
+          '16.06': 'asdf'
+
+    - debug: msg="{{ ubuntu_version_to_old_kernel_info }}"
+
+    - name: Install an older (than what will get upgraded to) linux kernel to rollback to
+      apt:
+        pkg: "{{ item.name }}"
+        state: "{{ kernel_update_kernel_pkg_state }}"
+        update_cache: yes
+        install_recommends: "{{ item.install_recommends|default('no') }}"
+        cache_valid_time: "{{ apt_cache_valid_time }}"
+      with_items: "{{ ubuntu_version_to_old_kernel_info[ansible_distribution_version].kernel_pkgs }}"
+      register: test_setup_kernel_result
+
+# rollback (to a manually installed kernel)
+
+- hosts: all
+  pre_tasks:
+    - debug: msg="{{ ubuntu_version_to_old_kernel_info[ansible_distribution_version].kernel }}"
+
+    - set_fact:
+        kernel_update_rollback: True
+        kernel_update_rollback_kernel_version: "{{ ubuntu_version_to_old_kernel_info[ansible_distribution_version].kernel }}"
+        old_ansible_kernel: "{{ ansible_kernel }}"
+
+  roles:
+    - role: kernel-update
+
+  post_tasks:
+    - set_fact:
+        kernel_version_to_distribution_versions: "{{ ubuntu_version_to_old_kernel_info[ansible_distribution_version] }}"
+
+    - include: check_kernel_install.yml
+
+    - assert:
+        that:
+          - ansible_kernel == kernel_update_rollback_kernel_version

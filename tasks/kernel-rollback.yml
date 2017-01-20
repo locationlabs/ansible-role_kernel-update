@@ -1,0 +1,35 @@
+---
+# Rollback an Ubuntu box to boot an existing kernel version.
+
+# These are the version of Ubuntu for which this role has been tested.
+- name: Fail if not a new release of Ubuntu
+  fail: msg="{{ ansible_distribution_version }} is not an acceptable version of Ubuntu for this role"
+  when: "ansible_distribution_version not in ['12.04', '14.04']"
+
+# read the version we want to roll back to from a file if not defined already
+- name: read old kernel version from file
+  command: "cat {{ kernel_update_kernel_version_file }}"
+  register: ku_stored_kernel_version
+  when: not kernel_update_rollback_kernel_version is defined
+
+- name: set kernel_update_rollback_kernel_version if not already set by user
+  set_fact:
+   kernel_update_rollback_kernel_version: "{{ kernel_update_rollback_kernel_version|default(ku_stored_kernel_version.stdout) }}"
+
+- name: check that kernel_update_rollback_kernel_version has been set
+  fail: msg="kernel_update_rollback_kernel_version is not defined"
+  when: not kernel_update_rollback_kernel_version is defined
+
+- name: set kernel_update_grub_requested_kernel_version to kernel_update_rollback_kernel_version
+  set_fact:
+   kernel_update_grub_requested_kernel_version: "{{ kernel_update_rollback_kernel_version }}"
+
+- include: update-grub.yml
+
+- include: reboot-and-wait.yml
+  when: ku_render_grub_result|changed and ku_update_grub_result|changed
+
+# this role modifies the host in ways which might have been cached
+# lets update all facts here to be sure we have ansible up to date.
+- name: update facts about host
+  setup:
