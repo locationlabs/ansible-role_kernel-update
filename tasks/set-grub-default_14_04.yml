@@ -35,7 +35,7 @@
 #   awk '/\$menuentry_id_option/ {print $(NF-1) }' /boot/grub/grub.cfg | sed s/\'//g | grep -v recovery | grep -F  {{ kernel_update_grub_requested_kernel_version }}
 # **RUN EVEN IN CHECKMODE**
 - name: get menuentry_id_option from /boot/grub/grub.cfg for {{ kernel_update_grub_requested_kernel_version }}
-  shell: "awk \'/\\$menuentry_id_option/ {print $(NF-1) }\' /boot/grub/grub.cfg | sed s/\\'//g | grep -v recovery | grep -F {{ kernel_update_grub_requested_kernel_version }}"
+  shell: "awk '/\\$menuentry_id_option/ {print $(NF-1) }' /boot/grub/grub.cfg | sed s/\\'//g | grep -v recovery | grep -F {{ kernel_update_grub_requested_kernel_version }}"
   when: kernel_update_grub_requested_kernel_version is defined
   register: ku_set_grub_vars_kernel_id
   always_run: yes
