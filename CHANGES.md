@@ -1,3 +1,6 @@
+Version 1.0.1:
+ - Resolve issue with yaml parsing in some environments
+
 Version 1.0:
  - Initial relase of role. 
  - Migrated kernel updating from ansible-role_docker
