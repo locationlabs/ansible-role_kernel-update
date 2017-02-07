@@ -93,14 +93,12 @@
   when: not kernel_update_grub_default is defined
 
 - name: Render grub configuration
-  template:
-    src: default_grub.j2
+  lineinfile:
     dest: /etc/default/grub
-    group: root
-    owner: root
-    mode: 0644
+    regexp: "^GRUB_DEFAULT="
+    line: "GRUB_DEFAULT=\"{{ kernel_update_grub_default }}\""
+    backup: yes
   register: ku_render_grub_result
-  # does 16.04 work with this?
   when: ansible_distribution_version in ['12.04', '14.04'] and kernel_update_grub_default is defined
 
 - name: Update grub
