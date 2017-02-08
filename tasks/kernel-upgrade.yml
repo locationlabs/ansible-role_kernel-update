@@ -90,7 +90,7 @@
 
 - include: reboot-and-wait.yml
   when: kernel_result|changed or linux_image_extra_result|changed or cgroup_lite_result|changed
-    or (ku_render_grub_result|changed and ku_update_grub_result|changed)
+    or ku_update_grub_changed
 
 # this role modifies the host in ways which might have been cached
 # lets update all facts here to be sure we have ansible up to date.

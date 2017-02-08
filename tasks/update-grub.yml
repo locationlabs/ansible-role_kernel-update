@@ -5,12 +5,11 @@
 # If no version is requested it will configure the host to load the most recent
 # kernel.
 #
+# We configure the host by adding files to /etc/default/grub.d/ with .cfg extention.
+# This will override any values set in /etc/default/grub.
+#
 # This task list does not include reboot-and-wait.yml. That should get done
 # by task lists that include this file (update-grub.yml) if reboot is needed.
-#
-# WARNING: This role works by writing /etc/default/grub so if you have any
-# existing manual configuration for this file you may need to expand the
-# role to allow for additional grub related configuration.
 #
 # What follows is the list of variables expected to get set before including
 # this task file as well as variables set by this task file that will be
@@ -21,8 +20,7 @@
 #
 #  kernel_update_grub_requested_kernel_version - the kernel version to have
 #  the host boot with. This should be a value you would want to see when
-#  runing `uname -r` after the machine is configured and restarted. If not
-#  defined it will GET SET to the kernel_update_grub_latest_kernel_version.
+#  runing `uname -r` after the machine is configured and restarted.
 #
 # SETS:
 #
@@ -35,11 +33,11 @@
 #  kernel_update_grub_default - the value used to set GRUB_DEFAULT in the
 #  grub configuration file.
 #
-#  ku_render_grub_result - the result of rendering /etc/default/grub. May
-#  be useful if users need to trigger a reboot after rendering the configuration.
+#  ku_grub_configuration_changed - boolean indicating if there was a grub
+#  configuration change. this is separate from the update_grub result.
 #
-#  ku_update_grub_result - the result of updating grub after rendering the
-#  default configuration. May be useful if users need to trigger a reboot
+#  ku_update_grub_changed - a boolean indicating the result of updating grub
+#  after a configuration change. May be useful if users need to trigger a reboot
 #  after running update-grub.
 
 - name: Fail if not a new release of Ubuntu
@@ -68,17 +66,10 @@
 
 # TODO add regex to confirm results are valid kernel versions.
 
-- name: set kernel_update_grub_requested_kernel_version to kernel_update_grub_latest_kernel_version if not already defined by user
-  set_fact:
-   kernel_update_grub_requested_kernel_version: "{{ kernel_update_grub_requested_kernel_version|default(kernel_update_grub_latest_kernel_version) }}"
-
-- name: check that kernel_update_grub_requested_kernel_version has been set
-  fail: msg="kernel_update_grub_requested_kernel_version is not defined"
-  when: not kernel_update_grub_requested_kernel_version is defined
-
-- name: check that kernel_update_grub_requested_kernel_version is in the list of available kernels
+- name: check that kernel_update_grub_requested_kernel_version is in the list of available kernels if defined
   fail: msg="kernel_update_grub_requested_kernel_version is not a valid kernel"
-  when: not kernel_update_grub_requested_kernel_version in kernel_update_grub_kernel_versions
+  when: kernel_update_grub_requested_kernel_version is defined
+    and kernel_update_grub_requested_kernel_version not in kernel_update_grub_kernel_versions
 
 - include: set-grub-default_14_04.yml
   when: ansible_distribution_version in ['14.04']
@@ -88,22 +79,45 @@
   when: ansible_distribution_version in ['12.04']
     and kernel_update_grub_requested_kernel_version is defined
 
-- name: check that kernel_update_grub_default has been set
-  fail: msg="kernel_update_grub_default is not defined"
-  when: not kernel_update_grub_default is defined
+# files located in this directory with a *.cfg extension
+# have precedence over the configuration in /etc/default/grub
+# https://bugs.launchpad.net/ubuntu/+source/grub2/+bug/901600
+- name: Create /etc/default/grub.d
+  file:
+    dest: /etc/default/grub.d
+    group: root
+    owner: root
+    mode: 0755
+    state: directory
 
-- name: Render grub configuration
+- name: Render grub default configuration
   template:
-    src: default_grub.j2
-    dest: /etc/default/grub
+    src: grub_default.j2
+    dest: "/etc/default/grub.d/{{ kernel_update_config_prefix_grub_default }}-grub-default.cfg"
     group: root
     owner: root
     mode: 0644
-  register: ku_render_grub_result
-  # does 16.04 work with this?
-  when: ansible_distribution_version in ['12.04', '14.04'] and kernel_update_grub_default is defined
+  register: ku_render_grub_default_result
+  when: kernel_update_grub_default is defined
+
+# This file should only exist when we don't want the most recent kernel.
+# we're assuming that /etc/default/grub has GRUB_DEFAULT=0 and we want to
+# remove existing additional configuration for this value if there is any
+# when we want grub to boot the most recent kernel.
+- name: Remove grub default configuration if kernel_update_grub_default isn't set
+  file:
+    dest: "/etc/default/grub.d/{{ kernel_update_config_prefix_grub_default }}-grub-default.cfg"
+    state: absent
+  register: ku_remove_grub_default_result
+  when: kernel_update_grub_default is not defined
+
+- set_fact:
+    ku_grub_configuration_changed: "{{ ku_render_grub_default_result|changed or ku_remove_grub_default_result|changed }}"
 
 - name: Update grub
   command: update-grub
   register: ku_update_grub_result
-  when: ku_render_grub_result|changed
+  when: ku_grub_configuration_changed
+
+- set_fact:
+    ku_update_grub_changed: "{{ ku_update_grub_result|changed }}"

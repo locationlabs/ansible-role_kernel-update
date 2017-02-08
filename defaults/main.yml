@@ -1,14 +1,18 @@
 ---
 # defaults file for ansible-role_kernel-update
-kernel_update_rollback: False
 
-kernel_update_kernel_pkg_state: latest
+# precedence goes to the higher prefix
+kernel_update_config_prefix_grub_default: 99
+
 kernel_update_cgroup_lite_pkg_state: latest
+kernel_update_kernel_pkg_state: latest
+kernel_update_rollback: False
 
 # https://refspecs.linuxfoundation.org/FHS_3.0/fhs-3.0.html#varlibVariableStateInformation
 # Default to a file in /var/lib/misc (this directory is expected to already exist).
 # Another possible location for the file is: /var/tmp or a custom directory in /var/lib
 kernel_update_kernel_version_file: /var/lib/misc/ansible_kernel-update_old-kernel-version.txt
 
-ssh_port: 22
+# defaults that might be shared accross roles
 apt_cache_valid_time: 86400
+ssh_port: 22

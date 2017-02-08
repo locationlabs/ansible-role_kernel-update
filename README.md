@@ -58,49 +58,52 @@ Role specific variables:
     can be set to `latest` - the default - or to `present`. In the former case, the package will
     be updated, if necessary, when the role is run. In the latter, the package will only be added
     if it is not present.
+  - `kernel_update_config_prefix_grub_default`: the prefix to use when creating the file containing
+    the `GRUB_DEFAULT` configuration.
   - `kernel_update_kernel_pkg_state`: This parameter works the same way as `cgroup_lite_package_state`,
     except controlling all kernel packages. The primary packages are `linux-*` type packages
     (i.e. `linux-image-extra-*`, `linux-image-generic-*`, `linux-headers-*`, etc.) installed based
     on the Ubuntu version.
-  - `kernel_update_rollback`: A boolean indicating if the role is going to preform a rollback.
-    The default is `False` indicating the role will perform an upgrade of the kernel unless changed.
-    If set to `True` this role will rollback to a kernel version specified in the
-    `kernel_update_kernel_version_file` if it exists, unless a user explicitly defines the
-    `kernel_update_rollback_kernel_version`.
   - `kernel_update_kernel_version_file`: The location of a file to write the pre update (upgrade or
     or rollback) kernel version to so that we can rollback across hosts with different kernel versions.
     It is expected that the path to the file already exists. By default the file will get generated in
     `/var/lib/misc` as per [Filesystem Hierarchy Standard][3]. See `kernel_update_store_kernel_version`
     for details on when the file is written.
+  - `kernel_update_rollback`: A boolean indicating if the role is going to preform a rollback.
+    The default is `False` indicating the role will perform an upgrade of the kernel unless changed.
+    If set to `True` this role will rollback to a kernel version specified in the
+    `kernel_update_kernel_version_file` if it exists, unless a user explicitly defines the
+    `kernel_update_rollback_kernel_version`.
 
 Optional role specific variables (without an entry in defaults):
 
-  - `kernel_update_store_kernel_version`: A boolean indicating if the current kernel version should
-    get written to a file on the host. By default a file will only get written if this value has been
-    set to `True` or the `kernel_update_kernel_version_file` doesn't exist yet.
-    See `write-kernel-version.yml` a for discussion of a possible issue with setting to `True` when
-    deploying to a multi box environment.
   - `kernel_update_rollback_kernel_version`: A string indicating what kernel version to rollback to.
     The string is the kernel release that would get found when running `uname -r`. This value will
     default to the contents of `kernel_update_kernel_version_file` unless explicitly defined. The
     role will make an effort to confirm that the kernel version provided is valid, but care should
     be used when setting this value manually.
+  - `kernel_update_store_kernel_version`: A boolean indicating if the current kernel version should
+    get written to a file on the host. By default a file will only get written if this value has been
+    set to `True` or the `kernel_update_kernel_version_file` doesn't exist yet.
+    See `write-kernel-version.yml` a for discussion of a possible issue with setting to `True` when
+    deploying to a multi box environment.
 
 Shared role variables:
 
-  - `ssh_port`: Which port to poll in order to confirm the target box is accessible via ssh
-    after a restart.
   - `apt_cache_valid_time`: Apt cache is updated if the last check is older than
     this duration (in seconds). Defaults to 1 day.
+  - `ssh_port`: Which port to poll in order to confirm the target box is accessible via ssh
+    after a restart.
 
-Grub Configuration
---------
 
-The grub changes made by this role are mostly made based on observation of how /boot/grub/grub.cfg is
-generated on a few Ubuntu versions as well as some [documentation][4] ([d1][5],[d2][6],[d3][7]). It is
-possible there are some issues that would make this role not portable to some particular configuration
-of a particular Ubuntu version (for instance if you have a different version of grub running on 14.04
-then is expected) so take steps to make sure this works for your use case.
+Grub
+----
+
+This role relies on details of how /boot/grub/grub.cfg is generated on a few Ubuntu versions
+as well as some [documentated][4] ([d1][5],[d2][6],[d3][7]) functionality to run properly. It
+is possible there are some issues that would make this role not portable to some particular
+configuration of an Ubuntu version (for instance if you have a different version of grub running
+on 14.04 then is expected) so take steps to make sure this works for your use case.
 
 We might need a playbook that checks the grub version on each host.
 
@@ -108,6 +111,18 @@ We might need a playbook that checks the grub version on each host.
 
         # see: info grub-mkconfig
         grub-mkconfig -v
+
+### Grub Configuration
+
+When this role sets grub to load a version of the kernel which isn't the most recent it
+does so by generating a file in /etc/default/grub.d. This only occurs in the event of a
+rollback. An upgrade will remove the generated file so that the most recent kernel is
+used to boot with. *NOTE* This assumes that your /etc/default/grub configuration sets
+`GRUB_DEFAULT=0`.
+
+We do this in order to allow other methods of updating the kernel to not require
+additional steps for the new kernel to get booted (i.e. removing the explicitly
+defined kernel version configuration).
 
 Testing
 -------

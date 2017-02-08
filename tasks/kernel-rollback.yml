@@ -27,7 +27,7 @@
 - include: update-grub.yml
 
 - include: reboot-and-wait.yml
-  when: ku_render_grub_result|changed and ku_update_grub_result|changed
+  when: ku_update_grub_changed
 
 # this role modifies the host in ways which might have been cached
 # lets update all facts here to be sure we have ansible up to date.
