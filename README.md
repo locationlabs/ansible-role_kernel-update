@@ -100,10 +100,15 @@ Grub
 ----
 
 This role relies on details of how /boot/grub/grub.cfg is generated on a few Ubuntu versions
-as well as some [documentated][4] ([d1][5],[d2][6],[d3][7]) functionality to run properly. It
+as well as some [documented][4] ([d1][5],[d2][6],[d3][7]) functionality to run properly. It
 is possible there are some issues that would make this role not portable to some particular
 configuration of an Ubuntu version (for instance if you have a different version of grub running
-on 14.04 then is expected) so take steps to make sure this works for your use case.
+on 14.04 than is expected) so take steps to make sure this works for your use case.
+
+This role assumes the following version mappings:
+
+  - Ubuntu 12.04: Grub 1.99
+  - Ubuntu 14.04: Grub 2.02
 
 We might need a playbook that checks the grub version on each host.
 
