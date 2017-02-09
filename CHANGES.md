@@ -1,3 +1,6 @@
+Version 1.1:
+ - Use /etc/default/grub.d for changes to grub configuration
+
 Version 1.0.1:
  - Resolve issue with yaml parsing in some environments
 
